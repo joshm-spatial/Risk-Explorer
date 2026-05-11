@@ -509,11 +509,6 @@
       const idx = parseInt(btn.dataset.scene, 10);
       if (idx === activeIndex) return;
 
-      // Suspend previous view
-      if (views[activeIndex]) {
-        views[activeIndex].suspended = true;
-      }
-
       // Deactivate all tabs & wraps
       document.querySelectorAll(".tab").forEach(t => {
         t.classList.remove("active");
@@ -529,7 +524,6 @@
 
       // Resume or init the new scene
       if (views[idx]) {
-        views[idx].suspended = false;
         setStatus("ready", "ready");
       } else {
         setStatus("loading", "loading " + SCENES[idx].label.toLowerCase() + "…");
