@@ -172,56 +172,61 @@
     #risk-indicators {
       display: none;
       position: fixed;
-      bottom: 24px;
+      bottom: 28px;
       left: 20px;
       background: var(--bg-panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 16px;
+      border-radius: 12px;
+      padding: 16px 20px;
       z-index: 1000;
-      min-width: 230px;
+      min-width: 290px;
     }
 
     .ri-header {
       font-family: 'DM Mono', monospace;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 500;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .ri-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 7px 0;
+      gap: 12px;
+      padding: 10px 0;
       border-top: 1px solid var(--border);
     }
 
     .ri-icon {
-      font-size: 13px;
       width: 18px;
-      text-align: center;
+      height: 18px;
       flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .ri-icon svg {
+      width: 18px;
+      height: 18px;
     }
 
     .ri-label {
-      font-size: 12px;
+      font-size: 14px;
       color: var(--text-secondary);
       flex: 1;
     }
 
     .ri-count {
       font-family: 'DM Mono', monospace;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 500;
       color: var(--text-muted);
-      padding: 2px 8px;
-      border-radius: 4px;
+      padding: 4px 12px;
+      border-radius: 6px;
       background: rgba(255,255,255,0.05);
-      min-width: 34px;
+      min-width: 42px;
       text-align: center;
       transition: color 0.2s, background 0.2s;
     }
@@ -457,17 +462,35 @@
 <div id="risk-indicators">
   <div class="ri-header">Risk Indicators</div>
   <div class="ri-row">
-    <div class="ri-icon">⚠</div>
+    <div class="ri-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
     <div class="ri-label">Weather Alerts</div>
     <div class="ri-count" id="ri-weather-count">—</div>
   </div>
   <div class="ri-row">
-    <div class="ri-icon">🌧</div>
+    <div class="ri-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/>
+        <line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/>
+        <line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/>
+        <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>
+      </svg>
+    </div>
     <div class="ri-label">Extreme Rain (7-day)</div>
     <div class="ri-count" id="ri-rain-count">—</div>
   </div>
   <div class="ri-row">
-    <div class="ri-icon">🌀</div>
+    <div class="ri-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
+        <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
+        <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
+      </svg>
+    </div>
     <div class="ri-label">Hurricane Wind Swath</div>
     <div class="ri-count" id="ri-hurricane-count">—</div>
   </div>
@@ -485,6 +508,7 @@
   let views = [null, null, null];
   let initialized = [false, false, false];
   let activeIndex = 0;
+  let riskPanelReady = false;
 
   const statusDot  = document.getElementById("status-dot");
   const statusText = document.getElementById("status-text");
@@ -588,24 +612,31 @@
     }
 
     function initRiskIndicators(view) {
-      const nodesLayer   = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
-      const extremeLayer = view.map.allLayers.find(l => l.title === "Extreme Events");
-      const severeLayer  = view.map.allLayers.find(l => l.title === "Severe Events");
-      const swathLayer   = view.map.allLayers.find(l => l.title === "Observed Wind Swath");
-      const rainLayer    = view.map.allLayers.find(l => l.title === "Day 1-7");
-
+      const nodesLayer = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
       if (!nodesLayer) {
         console.warn("Risk indicators: SupplyChainDataModel not found");
         return;
       }
 
+      // All NWS severity sublayers — heat advisories land in Moderate/Minor
+      const weatherTitles   = ["Extreme Events", "Severe Events", "Moderate Events", "Minor Events", "Other Events"];
+      const weatherLayers   = weatherTitles.map(t => view.map.allLayers.find(l => l.title === t)).filter(Boolean);
+      const swathLayer      = view.map.allLayers.find(l => l.title === "Observed Wind Swath");
+      const rainLayer       = view.map.allLayers.find(l => l.title === "Day 1-7");
+
+      riskPanelReady = true;
       document.getElementById("risk-indicators").style.display = "block";
 
       async function queryHazardCount(hazardLayers) {
         const geoms = [];
         for (const lyr of hazardLayers) {
-          if (!lyr || typeof lyr.queryFeatures !== "function") continue;
+          if (!lyr) continue;
           try {
+            await lyr.load();
+            if (typeof lyr.queryFeatures !== "function") {
+              console.warn("Risk indicators: layer does not support queryFeatures —", lyr.title, lyr.type);
+              continue;
+            }
             const result = await lyr.queryFeatures({
               where: "1=1",
               returnGeometry: true,
@@ -640,7 +671,7 @@
 
       function refresh() {
         Promise.all([
-          queryHazardCount([extremeLayer, severeLayer].filter(Boolean)),
+          queryHazardCount(weatherLayers),
           queryHazardCount([rainLayer].filter(Boolean)),
           queryHazardCount([swathLayer].filter(Boolean))
         ]).then(([weatherCount, rainCount, hurricaneCount]) => {
@@ -712,6 +743,9 @@
       document.getElementById("wrap-" + idx).classList.add("active");
 
       activeIndex = idx;
+
+      document.getElementById("risk-indicators").style.display =
+        (idx === 0 && riskPanelReady) ? "block" : "none";
 
       // Resume or init the new scene
       if (views[idx]) {
