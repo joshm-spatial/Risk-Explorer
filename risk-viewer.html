@@ -495,10 +495,47 @@
         if (camera) view.camera = camera;
         hideLoading(i);
         if (i === activeIndex) setStatus("ready", "ready");
+        if (i === 2) initNodeSelection(view);
       }).catch(err => {
         console.error("Scene " + i + " failed:", err);
         hideLoading(i);
         if (i === activeIndex) setStatus("error", "load failed");
+      });
+    }
+
+    function initNodeSelection(view) {
+      const nodesLayer   = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
+      const connectLayer = view.map.allLayers.find(l => l.title === "CONNECT_SILVER");
+      if (!nodesLayer || !connectLayer) {
+        console.warn("Node selection: required layers not found");
+        return;
+      }
+
+      view.whenLayerView(connectLayer).then(lv => {
+        let activeOid = null;
+
+        view.on("click", async event => {
+          const { results } = await view.hitTest(event, { include: [nodesLayer] });
+
+          if (!results.length) {
+            lv.filter = null;
+            activeOid = null;
+            return;
+          }
+
+          const graphic = results[0].graphic;
+          const oid = graphic.attributes[nodesLayer.objectIdField];
+
+          if (oid === activeOid) {
+            // Same node clicked again — toggle off
+            lv.filter = null;
+            activeOid = null;
+            return;
+          }
+
+          activeOid = oid;
+          lv.filter = { geometry: graphic.geometry, spatialRelationship: "intersects" };
+        });
       });
     }
 
