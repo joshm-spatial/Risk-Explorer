@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Risk Intelligence Platform</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css" />
+  <script src="https://js.arcgis.com/4.29/"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:      #0d0f12;
+      --bg-surface:   #141720;
+      --bg-panel:     #1b1f2b;
+      --border:       rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.18);
+      --accent:       #4a9eff;
+      --accent-dim:   rgba(74,158,255,0.12);
+      --accent-glow:  rgba(74,158,255,0.25);
+      --text-primary: #e8eaf0;
+      --text-secondary: #7a8099;
+      --text-muted:   #4a5070;
+      --tab-h:        52px;
+      --header-h:     56px;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Syne', sans-serif;
+    }
+
+    /* ── Header ── */
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      z-index: 10000;
+    }
+
+    #wordmark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #4a9eff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-mark svg { width: 16px; height: 16px; }
+
+    #wordmark h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .divider-v {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Tabs ── */
+    #tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .tab {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      letter-spacing: 0.02em;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.05);
+      border-color: var(--border);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      border-color: rgba(74,158,255,0.3);
+      font-weight: 600;
+    }
+
+    .tab-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.07);
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .tab.active .tab-badge {
+      background: rgba(74,158,255,0.18);
+      color: var(--accent);
+    }
+
+    /* ── Status indicator (top-right) ── */
+    #status-bar {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s;
+    }
+
+    .status-dot.ready   { background: #3ecf7f; box-shadow: 0 0 6px rgba(62,207,127,0.5); }
+    .status-dot.loading { background: #f5a623; animation: pulse 1s infinite; }
+    .status-dot.error   { background: #e25454; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Scene containers ── */
+    #scenes {
+      position: fixed;
+      top: var(--header-h);
+      left: 0; right: 0; bottom: 0;
+    }
+
+    .scene-wrap {
+      position: absolute;
+      inset: 0;
+      visibility: hidden;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .scene-wrap.active {
+      visibility: visible;
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    .scene-div {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Loading overlay per scene ── */
+    .scene-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: var(--bg-base);
+      z-index: 10;
+      transition: opacity 0.4s;
+    }
+
+    .scene-loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner-ring {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* ── Auth overlay (shown before scenes init) ── */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-base);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 999;
+    }
+
+    #auth-overlay .auth-logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #4a9eff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #auth-overlay .auth-logo svg { width: 28px; height: 28px; }
+
+    #auth-overlay h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-align: center;
+    }
+
+    #auth-overlay p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-align: center;
+      max-width: 340px;
+      line-height: 1.6;
+    }
+
+    #auth-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(74,158,255,0.4);
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #auth-btn:hover {
+      background: var(--accent-glow);
+      border-color: rgba(74,158,255,0.7);
+    }
+
+    #auth-btn svg { width: 18px; height: 18px; }
+
+    #auth-error {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: #e25454;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth splash shown until user signs in -->
+<div id="auth-overlay">
+  <div class="auth-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+      <polyline points="2 17 12 22 22 17"/>
+      <polyline points="2 12 12 17 22 12"/>
+    </svg>
+  </div>
+  <h2>Risk Intelligence Platform</h2>
+  <p>Sign in with your ArcGIS Online account to access the Risk Explorer, Risk Scoring, and Risk Planner scenes.</p>
+  <button id="auth-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    Sign in with ArcGIS Online
+  </button>
+  <span id="auth-error">Authentication failed — please try again.</span>
+</div>
+
+<!-- Main UI (hidden until auth) -->
+<header id="header" style="display:none;">
+  <div id="wordmark">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+    </div>
+    <h1>Risk Intelligence</h1>
+  </div>
+
+  <div class="divider-v"></div>
+
+  <nav id="tabs" role="tablist">
+    <button class="tab active" data-scene="0" role="tab" aria-selected="true">
+      Risk Explorer
+      <span class="tab-badge">MAIN</span>
+    </button>
+    <button class="tab" data-scene="1" role="tab" aria-selected="false">
+      Risk Scoring
+    </button>
+    <button class="tab" data-scene="2" role="tab" aria-selected="false">
+      Risk Planner
+    </button>
+  </nav>
+
+  <div id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">initializing</span>
+  </div>
+</header>
+
+<div id="scenes" style="display:none;" role="main">
+  <div class="scene-wrap active" id="wrap-0">
+    <div class="scene-loading" id="loading-0">
+      <div class="spinner-ring"></div>
+      <div class="loading-label">Loading Risk Explorer</div>
+    </div>
+    <div class="scene-div" id="scene-0"></div>
+  </div>
+  <div class="scene-wrap" id="wrap-1">
+    <div class="scene-loading" id="loading-1">
+      <div class="spinner-ring"></div>
+      <div class="loading-label">Loading Risk Scoring</div>
+    </div>
+    <div class="scene-div" id="scene-1"></div>
+  </div>
+  <div class="scene-wrap" id="wrap-2">
+    <div class="scene-loading" id="loading-2">
+      <div class="spinner-ring"></div>
+      <div class="loading-label">Loading Risk Planner</div>
+    </div>
+    <div class="scene-div" id="scene-2"></div>
+  </div>
+</div>
+
+<script>
+  const PORTAL_URL = "https://esri-cgs.maps.arcgis.com";
+
+  const SCENES = [
+    { id: "ae389e3319ec493eb82762c3c4036255", label: "Risk Explorer" },
+    { id: "cb796ca4f9974aceae510f88c9a3d15c", label: "Risk Scoring" },
+    { id: "012bfc4d6d644673939cb35abf2f0e0f", label: "Risk Planner" }
+  ];
+
+  let views = [null, null, null];
+  let initialized = [false, false, false];
+  let activeIndex = 0;
+
+  const statusDot  = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+
+  function setStatus(state, text) {
+    statusDot.className = "status-dot " + state;
+    statusText.textContent = text;
+  }
+
+  function hideLoading(i) {
+    const el = document.getElementById("loading-" + i);
+    if (el) el.classList.add("hidden");
+  }
+
+  require([
+    "esri/identity/IdentityManager",
+    "esri/identity/OAuthInfo",
+    "esri/portal/Portal",
+    "esri/WebScene",
+    "esri/views/SceneView"
+  ], function(esriId, OAuthInfo, Portal, WebScene, SceneView) {
+
+    const oauthInfo = new OAuthInfo({
+      appId: "Bh1bcReL0lXkMNhM",
+      portalUrl: PORTAL_URL,
+      popup: false
+    });
+    esriId.registerOAuthInfos([oauthInfo]);
+
+    const authBtn   = document.getElementById("auth-btn");
+    const authError = document.getElementById("auth-error");
+
+    // Pick up credentials automatically after OAuth redirect returns
+    esriId.checkSignInStatus(PORTAL_URL + "/sharing/rest")
+      .then(onAuthenticated)
+      .catch(() => { /* not signed in yet */ });
+
+    authBtn.addEventListener("click", () => {
+      authError.style.display = "none";
+      authBtn.textContent = "Redirecting to sign-in…";
+      authBtn.disabled = true;
+
+      esriId.getCredential(PORTAL_URL + "/sharing/rest")
+        .then(onAuthenticated)
+        .catch(() => {
+          authError.style.display = "block";
+          authBtn.textContent = "Sign in with ArcGIS Online";
+          authBtn.disabled = false;
+        });
+    });
+
+    function onAuthenticated() {
+      // Dismiss auth overlay
+      const overlay = document.getElementById("auth-overlay");
+      overlay.style.transition = "opacity 0.4s";
+      overlay.style.opacity = "0";
+      setTimeout(() => overlay.remove(), 400);
+
+      document.getElementById("header").style.display = "flex";
+      document.getElementById("scenes").style.display = "block";
+
+      setStatus("loading", "loading scene…");
+
+      // Load the first (active) scene immediately
+      loadScene(0);
+    }
+
+    function loadScene(i, camera) {
+      if (initialized[i]) return;
+      initialized[i] = true;
+
+      setStatus("loading", "loading " + SCENES[i].label.toLowerCase() + "…");
+
+      const webScene = new WebScene({
+        portalItem: {
+          id: SCENES[i].id,
+          portal: { url: PORTAL_URL }
+        }
+      });
+
+      const view = new SceneView({
+        container: "scene-" + i,
+        map: webScene,
+        ui: { components: ["zoom", "compass", "navigation-toggle"] }
+      });
+
+      views[i] = view;
+
+      view.when(() => {
+        if (camera) view.camera = camera;
+        hideLoading(i);
+        if (i === activeIndex) setStatus("ready", "ready");
+        if (i === 2) initNodeSelection(view);
+      }).catch(err => {
+        console.error("Scene " + i + " failed:", err);
+        hideLoading(i);
+        if (i === activeIndex) setStatus("error", "load failed");
+      });
+    }
+
+    function initNodeSelection(view) {
+      const nodesLayer   = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
+      const connectLayer = view.map.allLayers.find(l => l.title === "CONNECT_SILVER");
+      if (!nodesLayer || !connectLayer) {
+        console.warn("Node selection: required layers not found");
+        return;
+      }
+
+      view.whenLayerView(connectLayer).then(lv => {
+        let activeOid = null;
+
+        view.on("click", async event => {
+          const { results } = await view.hitTest(event, { include: [nodesLayer] });
+
+          if (!results.length) {
+            lv.filter = null;
+            activeOid = null;
+            return;
+          }
+
+          const graphic = results[0].graphic;
+          const oid = graphic.attributes[nodesLayer.objectIdField];
+
+          if (oid === activeOid) {
+            // Same node clicked again — toggle off
+            lv.filter = null;
+            activeOid = null;
+            return;
+          }
+
+          activeOid = oid;
+          lv.filter = { geometry: graphic.geometry, spatialRelationship: "intersects" };
+        });
+      });
+    }
+
+    // Tab switching
+    document.getElementById("tabs").addEventListener("click", e => {
+      const btn = e.target.closest(".tab");
+      if (!btn) return;
+
+      const idx = parseInt(btn.dataset.scene, 10);
+      if (idx === activeIndex) return;
+
+      const camera = views[activeIndex] ? views[activeIndex].camera : null;
+
+      // Deactivate all tabs & wraps
+      document.querySelectorAll(".tab").forEach(t => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
+      document.querySelectorAll(".scene-wrap").forEach(w => w.classList.remove("active"));
+
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      document.getElementById("wrap-" + idx).classList.add("active");
+
+      activeIndex = idx;
+
+      // Resume or init the new scene
+      if (views[idx]) {
+        if (camera) views[idx].camera = camera;
+        setStatus("ready", "ready");
+      } else {
+        setStatus("loading", "loading " + SCENES[idx].label.toLowerCase() + "…");
+        loadScene(idx, camera);
+      }
+    });
+  });
+</script>
+</body>
+</html>
