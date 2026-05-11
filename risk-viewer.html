@@ -168,6 +168,68 @@
     .status-dot.loading { background: #f5a623; animation: pulse 1s infinite; }
     .status-dot.error   { background: #e25454; }
 
+    /* ── Risk Indicators Panel ── */
+    #risk-indicators {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 20px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      z-index: 1000;
+      min-width: 230px;
+    }
+
+    .ri-header {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .ri-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .ri-icon {
+      font-size: 13px;
+      width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .ri-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .ri-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.05);
+      min-width: 34px;
+      text-align: center;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .ri-count.active-weather   { color: #f5a623; background: rgba(245,166,35,0.15); }
+    .ri-count.active-rain      { color: #4a9eff; background: rgba(74,158,255,0.15); }
+    .ri-count.active-hurricane { color: #3ecf7f; background: rgba(62,207,127,0.15); }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50%       { opacity: 0.3; }
@@ -391,6 +453,26 @@
   </div>
 </div>
 
+<!-- Risk Indicator Panel (shown after scene 0 loads) -->
+<div id="risk-indicators">
+  <div class="ri-header">Risk Indicators</div>
+  <div class="ri-row">
+    <div class="ri-icon">⚠</div>
+    <div class="ri-label">Weather Alerts</div>
+    <div class="ri-count" id="ri-weather-count">—</div>
+  </div>
+  <div class="ri-row">
+    <div class="ri-icon">🌧</div>
+    <div class="ri-label">Extreme Rain (7-day)</div>
+    <div class="ri-count" id="ri-rain-count">—</div>
+  </div>
+  <div class="ri-row">
+    <div class="ri-icon">🌀</div>
+    <div class="ri-label">Hurricane Wind Swath</div>
+    <div class="ri-count" id="ri-hurricane-count">—</div>
+  </div>
+</div>
+
 <script>
   const PORTAL_URL = "https://esri-cgs.maps.arcgis.com";
 
@@ -422,8 +504,9 @@
     "esri/identity/OAuthInfo",
     "esri/portal/Portal",
     "esri/WebScene",
-    "esri/views/SceneView"
-  ], function(esriId, OAuthInfo, Portal, WebScene, SceneView) {
+    "esri/views/SceneView",
+    "esri/geometry/geometryEngine"
+  ], function(esriId, OAuthInfo, Portal, WebScene, SceneView, geometryEngine) {
 
     const oauthInfo = new OAuthInfo({
       appId: "Bh1bcReL0lXkMNhM",
@@ -495,12 +578,80 @@
         if (camera) view.camera = camera;
         hideLoading(i);
         if (i === activeIndex) setStatus("ready", "ready");
+        if (i === 0) initRiskIndicators(view);
         if (i === 2) initNodeSelection(view);
       }).catch(err => {
         console.error("Scene " + i + " failed:", err);
         hideLoading(i);
         if (i === activeIndex) setStatus("error", "load failed");
       });
+    }
+
+    function initRiskIndicators(view) {
+      const nodesLayer   = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
+      const extremeLayer = view.map.allLayers.find(l => l.title === "Extreme Events");
+      const severeLayer  = view.map.allLayers.find(l => l.title === "Severe Events");
+      const swathLayer   = view.map.allLayers.find(l => l.title === "Observed Wind Swath");
+      const rainLayer    = view.map.allLayers.find(l => l.title === "Day 1-7");
+
+      if (!nodesLayer) {
+        console.warn("Risk indicators: SupplyChainDataModel not found");
+        return;
+      }
+
+      document.getElementById("risk-indicators").style.display = "block";
+
+      async function queryHazardCount(hazardLayers) {
+        const geoms = [];
+        for (const lyr of hazardLayers) {
+          if (!lyr || typeof lyr.queryFeatures !== "function") continue;
+          try {
+            const result = await lyr.queryFeatures({
+              where: "1=1",
+              returnGeometry: true,
+              outSpatialReference: view.spatialReference
+            });
+            result.features.forEach(f => { if (f.geometry) geoms.push(f.geometry); });
+          } catch (e) {
+            console.warn("Hazard layer query failed:", lyr.title, e);
+          }
+        }
+        if (!geoms.length) return 0;
+        const union   = geoms.length === 1 ? geoms[0] : geometryEngine.union(geoms);
+        const clipped = geometryEngine.intersect(union, view.extent);
+        if (!clipped) return 0;
+        try {
+          return await nodesLayer.queryFeatureCount({
+            geometry: clipped,
+            spatialRelationship: "intersects",
+            where: "1=1"
+          });
+        } catch (e) {
+          console.warn("Node count query failed:", e);
+          return 0;
+        }
+      }
+
+      function setCount(id, count, activeClass) {
+        const el = document.getElementById(id);
+        el.textContent = count;
+        el.className = "ri-count" + (count > 0 ? " " + activeClass : "");
+      }
+
+      function refresh() {
+        Promise.all([
+          queryHazardCount([extremeLayer, severeLayer].filter(Boolean)),
+          queryHazardCount([rainLayer].filter(Boolean)),
+          queryHazardCount([swathLayer].filter(Boolean))
+        ]).then(([weatherCount, rainCount, hurricaneCount]) => {
+          setCount("ri-weather-count",   weatherCount,   "active-weather");
+          setCount("ri-rain-count",      rainCount,      "active-rain");
+          setCount("ri-hurricane-count", hurricaneCount, "active-hurricane");
+        });
+      }
+
+      refresh();
+      view.watch("stationary", val => { if (val) refresh(); });
     }
 
     function initNodeSelection(view) {
