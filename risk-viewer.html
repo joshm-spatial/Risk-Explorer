@@ -470,7 +470,7 @@
       loadScene(0);
     }
 
-    function loadScene(i) {
+    function loadScene(i, camera) {
       if (initialized[i]) return;
       initialized[i] = true;
 
@@ -492,6 +492,7 @@
       views[i] = view;
 
       view.when(() => {
+        if (camera) view.camera = camera;
         hideLoading(i);
         if (i === activeIndex) setStatus("ready", "ready");
       }).catch(err => {
@@ -509,6 +510,8 @@
       const idx = parseInt(btn.dataset.scene, 10);
       if (idx === activeIndex) return;
 
+      const camera = views[activeIndex] ? views[activeIndex].camera : null;
+
       // Deactivate all tabs & wraps
       document.querySelectorAll(".tab").forEach(t => {
         t.classList.remove("active");
@@ -524,10 +527,11 @@
 
       // Resume or init the new scene
       if (views[idx]) {
+        if (camera) views[idx].camera = camera;
         setStatus("ready", "ready");
       } else {
         setStatus("loading", "loading " + SCENES[idx].label.toLowerCase() + "…");
-        loadScene(idx);
+        loadScene(idx, camera);
       }
     });
   });
