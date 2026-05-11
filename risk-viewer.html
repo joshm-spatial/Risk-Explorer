@@ -419,20 +419,32 @@
 
   require([
     "esri/identity/IdentityManager",
+    "esri/identity/OAuthInfo",
     "esri/portal/Portal",
     "esri/WebScene",
     "esri/views/SceneView"
-  ], function(esriId, Portal, WebScene, SceneView) {
+  ], function(esriId, OAuthInfo, Portal, WebScene, SceneView) {
+
+    const oauthInfo = new OAuthInfo({
+      appId: "Bh1bcReL0lXkMNhM",
+      portalUrl: PORTAL_URL,
+      popup: false
+    });
+    esriId.registerOAuthInfos([oauthInfo]);
 
     const authBtn   = document.getElementById("auth-btn");
     const authError = document.getElementById("auth-error");
 
+    // Pick up credentials automatically after OAuth redirect returns
+    esriId.checkSignInStatus(PORTAL_URL + "/sharing/rest")
+      .then(onAuthenticated)
+      .catch(() => { /* not signed in yet */ });
+
     authBtn.addEventListener("click", () => {
       authError.style.display = "none";
-      authBtn.textContent = "Opening sign-in…";
+      authBtn.textContent = "Redirecting to sign-in…";
       authBtn.disabled = true;
 
-      // Trigger credential check against the org portal
       esriId.getCredential(PORTAL_URL + "/sharing/rest")
         .then(onAuthenticated)
         .catch(() => {
