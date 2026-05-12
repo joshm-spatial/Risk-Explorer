@@ -342,12 +342,11 @@
     esriId.registerOAuthInfos([new OAuthInfo({
       appId: "tAaxld2dnt3aNhGu",
       portalUrl: PORTAL_URL,
-      popup: true
+      popup: false
     })]);
 
-    // Check for existing session; if none, open sign-in popup
-    esriId.checkSignInStatus(PORTAL_URL + "/sharing/rest")
-      .catch(() => esriId.getCredential(PORTAL_URL + "/sharing/rest"))
+    // getCredential returns cached session if available, otherwise redirects to sign-in
+    esriId.getCredential(PORTAL_URL + "/sharing/rest")
       .then(() => loadScene(0))
       .catch(err => {
         console.error("Authentication failed:", err);
