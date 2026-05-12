@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Risk Intelligence Platform</title>
+
+  <!-- ArcGIS Maps SDK -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css" />
+  <script src="https://js.arcgis.com/4.29/"></script>
+
+  <!-- Calcite Design System -->
+  <script type="module" src="https://js.arcgis.com/calcite-components/2.13.2/calcite.esm.js"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/calcite-components/2.13.2/calcite.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:        #0d0f12;
+      --bg-surface:     #141720;
+      --bg-panel:       #1b1f2b;
+      --border:         rgba(255,255,255,0.08);
+      --accent:         #4a9eff;
+      --accent-dim:     rgba(74,158,255,0.12);
+      --text-primary:   #e8eaf0;
+      --text-secondary: #7a8099;
+      --text-muted:     #4a5070;
+      --header-h:       56px;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Syne', sans-serif;
+    }
+
+    /* ── Header ── */
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      z-index: 10000;
+    }
+
+    #wordmark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #4a9eff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-mark svg { width: 16px; height: 16px; }
+
+    #wordmark h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .divider-v {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Tabs ── */
+    #tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      letter-spacing: 0.02em;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.05);
+      border-color: var(--border);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      border-color: rgba(74,158,255,0.3);
+      font-weight: 600;
+    }
+
+    .tab-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.07);
+      color: var(--text-muted);
+    }
+
+    .tab.active .tab-badge {
+      background: rgba(74,158,255,0.18);
+      color: var(--accent);
+    }
+
+    /* ── Status ── */
+    #status-bar {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .status-dot.ready   { background: #3ecf7f; box-shadow: 0 0 6px rgba(62,207,127,0.5); }
+    .status-dot.loading { background: #f5a623; animation: pulse 1s infinite; }
+    .status-dot.error   { background: #e25454; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes spin   { to{transform:rotate(360deg)} }
+
+    /* ── Scene containers ── */
+    #scenes {
+      position: fixed;
+      top: var(--header-h);
+      left: 0; right: 0; bottom: 0;
+    }
+
+    .scene-wrap {
+      position: absolute;
+      inset: 0;
+      visibility: hidden;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .scene-wrap.active {
+      visibility: visible;
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    .scene-div { width: 100%; height: 100%; }
+
+    .scene-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: var(--bg-base);
+      z-index: 10;
+      transition: opacity 0.4s;
+    }
+
+    .scene-loading.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner-ring {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+    }
+
+    .loading-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* ── Risk Indicators Panel ── */
+    #risk-indicators {
+      display: none;
+      position: fixed;
+      bottom: 28px;
+      left: 20px;
+      z-index: 1000;
+    }
+
+    calcite-card#risk-card {
+      --calcite-color-foreground-1: #1b1f2b;
+      --calcite-color-border-1: rgba(255,255,255,0.08);
+      --calcite-color-text-1: #e8eaf0;
+      --calcite-color-text-3: #4a5070;
+      width: 290px;
+    }
+
+    .ri-header {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 14px 16px 6px;
+    }
+
+    .ri-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ri-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .ri-icon svg { width: 18px; height: 18px; }
+
+    .ri-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .ri-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 4px 12px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      min-width: 48px;
+      text-align: center;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .ri-count.active-weather   { color: #f5a623; background: rgba(245,166,35,0.15); }
+    .ri-count.active-rain      { color: #4a9eff; background: rgba(74,158,255,0.15); }
+    .ri-count.active-hurricane { color: #3ecf7f; background: rgba(62,207,127,0.15); }
+  </style>
+</head>
+<body>
+
+<header id="header">
+  <div id="wordmark">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+    </div>
+    <h1>Risk Intelligence</h1>
+  </div>
+
+  <div class="divider-v"></div>
+
+  <nav id="tabs" role="tablist">
+    <button class="tab active" data-scene="0" role="tab" aria-selected="true">
+      Risk Explorer
+      <span class="tab-badge">MAIN</span>
+    </button>
+    <button class="tab" data-scene="1" role="tab" aria-selected="false">
+      Risk Scoring
+    </button>
+    <button class="tab" data-scene="2" role="tab" aria-selected="false">
+      Risk Planner
+    </button>
+  </nav>
+
+  <div id="status-bar">
+    <div class="status-dot loading" id="status-dot"></div>
+    <span id="status-text">initializing</span>
+  </div>
+</header>
+
+<div id="scenes" role="main">
+  <div class="scene-wrap active" id="wrap-0">
+    <div class="scene-loading" id="loading-0">
+      <div class="spinner-ring"></div>
+      <div class="loading-label">Loading Risk Explorer</div>
+    </div>
+    <div class="scene-div" id="scene-0"></div>
+  </div>
+  <div class="scene-wrap" id="wrap-1">
+    <div class="scene-loading" id="loading-1">
+      <div class="spinner-ring"></div>
+      <div class="loading-label">Loading Risk Scoring</div>
+    </div>
+    <div class="scene-div" id="scene-1"></div>
+  </div>
+  <div class="scene-wrap" id="wrap-2">
+    <div class="scene-loading" id="loading-2">
+      <div class="spinner-ring"></div>
+      <div class="loading-label">Loading Risk Planner</div>
+    </div>
+    <div class="scene-div" id="scene-2"></div>
+  </div>
+</div>
+
+<!-- Risk Indicators Panel -->
+<div id="risk-indicators">
+  <calcite-card id="risk-card">
+    <div class="ri-header">Risk Indicators</div>
+    <div class="ri-row">
+      <div class="ri-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div class="ri-label">Weather Alerts</div>
+      <div class="ri-count" id="ri-weather-count">—</div>
+    </div>
+    <div class="ri-row">
+      <div class="ri-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/>
+          <line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/>
+          <line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/>
+          <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>
+        </svg>
+      </div>
+      <div class="ri-label">Extreme Rain (7-day)</div>
+      <div class="ri-count" id="ri-rain-count">—</div>
+    </div>
+    <div class="ri-row">
+      <div class="ri-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
+          <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
+          <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
+        </svg>
+      </div>
+      <div class="ri-label">Hurricane Wind Swath</div>
+      <div class="ri-count" id="ri-hurricane-count">—</div>
+    </div>
+  </calcite-card>
+</div>
+
+<script>
+  const API_KEY    = "AAPTa_TPQ0BjrvT1zphwzyrQOYA..-q1UWYsWn8UOO-vFikSPxHu-OJ5fjWIsPhl1LAoIlPTnoZEqeMq0tmCTUj1tYBdljvkAEiJSpZNtvifU5N6IowRuLGWMvGg24zGRFDZY0U0KXR_Hy2VJoiuDaupqBOMY6ARW4sMZYjDpB8TJunkvzfY6UM7fz1jZ_H0PL3jVTN7S1DqdJ2DtJ_mwMrLHGU_jFToxRW3Gd63MeT_TAjcaaGMqn41BLLfNir3NZ_MgXnBIdOLqGXf_htMdl5x1Bm0R88LW4EBAQ9CAl51JbsQkFUht26Nr1Q..AT1_XhJ7Mk4f";
+  const PORTAL_URL = "https://esri-cgs.maps.arcgis.com";
+
+  const SCENES = [
+    { id: "ae389e3319ec493eb82762c3c4036255", label: "Risk Explorer" },
+    { id: "cb796ca4f9974aceae510f88c9a3d15c", label: "Risk Scoring" },
+    { id: "012bfc4d6d644673939cb35abf2f0e0f", label: "Risk Planner" }
+  ];
+
+  let views       = [null, null, null];
+  let initialized = [false, false, false];
+  let activeIndex = 0;
+  let riskPanelReady = false;
+
+  const statusDot  = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+
+  function setStatus(state, text) {
+    statusDot.className = "status-dot " + state;
+    statusText.textContent = text;
+  }
+
+  function hideLoading(i) {
+    const el = document.getElementById("loading-" + i);
+    if (el) el.classList.add("hidden");
+  }
+
+  require([
+    "esri/config",
+    "esri/WebScene",
+    "esri/views/SceneView"
+  ], function(esriConfig, WebScene, SceneView) {
+
+    esriConfig.apiKey = API_KEY;
+
+    loadScene(0);
+
+    function loadScene(i, camera) {
+      if (initialized[i]) return;
+      initialized[i] = true;
+
+      setStatus("loading", "loading " + SCENES[i].label.toLowerCase() + "…");
+
+      const webScene = new WebScene({
+        portalItem: {
+          id: SCENES[i].id,
+          portal: { url: PORTAL_URL }
+        }
+      });
+
+      const view = new SceneView({
+        container: "scene-" + i,
+        map: webScene,
+        ui: { components: ["zoom", "compass", "navigation-toggle"] }
+      });
+
+      views[i] = view;
+
+      view.when(() => {
+        if (camera) view.camera = camera;
+        hideLoading(i);
+        if (i === activeIndex) setStatus("ready", "ready");
+        if (i === 0) initRiskIndicators(view);
+        if (i === 2) initNodeSelection(view);
+      }).catch(err => {
+        console.error("Scene " + i + " failed:", err);
+        hideLoading(i);
+        if (i === activeIndex) setStatus("error", "load failed");
+      });
+    }
+
+    // ── Risk Indicators ──────────────────────────────────────────────────────
+    function initRiskIndicators(view) {
+      const nodesLayer = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
+      if (!nodesLayer) {
+        console.warn("Risk indicators: SupplyChainDataModel not found");
+        return;
+      }
+
+      const weatherTitles = ["Extreme Events", "Severe Events", "Moderate Events", "Minor Events", "Other Events"];
+      const weatherLayers = weatherTitles.map(t => view.map.allLayers.find(l => l.title === t)).filter(Boolean);
+      const swathLayer    = view.map.allLayers.find(l => l.title === "Observed Wind Swath");
+      const rainLayer     = view.map.allLayers.find(l => l.title === "Day 1-7");
+
+      riskPanelReady = true;
+      document.getElementById("risk-indicators").style.display = "block";
+
+      // Query the hazard layer server-side using the current view extent,
+      // then count nodes that intersect those results — all server-side.
+      async function countNodesInHazard(hazardLayers) {
+        let nodeOids = new Set();
+
+        for (const lyr of hazardLayers) {
+          if (!lyr) continue;
+          try {
+            await lyr.load();
+            if (typeof lyr.queryFeatures !== "function") continue;
+
+            // Step 1: get hazard feature OIDs that intersect the current extent
+            const hazardResult = await lyr.queryFeatures({
+              geometry: view.extent,
+              spatialRelationship: "intersects",
+              returnGeometry: true,
+              outFields: [],
+              outSpatialReference: view.spatialReference
+            });
+
+            if (!hazardResult.features.length) continue;
+
+            // Step 2: for each hazard feature, query node OIDs that intersect it
+            for (const hazardFeature of hazardResult.features) {
+              if (!hazardFeature.geometry) continue;
+              try {
+                const nodeResult = await nodesLayer.queryObjectIds({
+                  geometry: hazardFeature.geometry,
+                  spatialRelationship: "intersects",
+                  where: "1=1"
+                });
+                nodeResult.forEach(oid => nodeOids.add(oid));
+              } catch (e) {
+                console.warn("Node OID query failed:", e);
+              }
+            }
+          } catch (e) {
+            console.warn("Hazard layer query failed:", lyr.title, e);
+          }
+        }
+
+        return nodeOids.size;
+      }
+
+      function setCount(id, count, activeClass) {
+        const el = document.getElementById(id);
+        el.textContent = count;
+        el.className = "ri-count" + (count > 0 ? " " + activeClass : "");
+      }
+
+      function refresh() {
+        Promise.all([
+          countNodesInHazard(weatherLayers),
+          countNodesInHazard([rainLayer].filter(Boolean)),
+          countNodesInHazard([swathLayer].filter(Boolean))
+        ]).then(([weatherCount, rainCount, hurricaneCount]) => {
+          setCount("ri-weather-count",   weatherCount,   "active-weather");
+          setCount("ri-rain-count",      rainCount,      "active-rain");
+          setCount("ri-hurricane-count", hurricaneCount, "active-hurricane");
+        });
+      }
+
+      refresh();
+      view.watch("stationary", val => { if (val) refresh(); });
+    }
+
+    // ── Node Selection (Risk Planner) ────────────────────────────────────────
+    function initNodeSelection(view) {
+      const nodesLayer   = view.map.allLayers.find(l => l.title === "SupplyChainDataModel");
+      const connectLayer = view.map.allLayers.find(l => l.title === "CONNECT_SILVER");
+      if (!nodesLayer || !connectLayer) {
+        console.warn("Node selection: required layers not found");
+        return;
+      }
+
+      view.whenLayerView(connectLayer).then(lv => {
+        let activeOid = null;
+
+        view.on("click", async event => {
+          const { results } = await view.hitTest(event, { include: [nodesLayer] });
+
+          if (!results.length) {
+            lv.filter = null;
+            activeOid = null;
+            return;
+          }
+
+          const graphic = results[0].graphic;
+          const oid = graphic.attributes[nodesLayer.objectIdField];
+
+          if (oid === activeOid) {
+            lv.filter = null;
+            activeOid = null;
+            return;
+          }
+
+          activeOid = oid;
+          lv.filter = { geometry: graphic.geometry, spatialRelationship: "intersects" };
+        });
+      });
+    }
+
+    // ── Tab switching ────────────────────────────────────────────────────────
+    document.getElementById("tabs").addEventListener("click", e => {
+      const btn = e.target.closest(".tab");
+      if (!btn) return;
+
+      const idx = parseInt(btn.dataset.scene, 10);
+      if (idx === activeIndex) return;
+
+      const camera = views[activeIndex] ? views[activeIndex].camera : null;
+
+      document.querySelectorAll(".tab").forEach(t => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
+      document.querySelectorAll(".scene-wrap").forEach(w => w.classList.remove("active"));
+
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      document.getElementById("wrap-" + idx).classList.add("active");
+
+      activeIndex = idx;
+
+      document.getElementById("risk-indicators").style.display =
+        (idx === 0 && riskPanelReady) ? "block" : "none";
+
+      if (views[idx]) {
+        if (camera) views[idx].camera = camera;
+        setStatus("ready", "ready");
+      } else {
+        setStatus("loading", "loading " + SCENES[idx].label.toLowerCase() + "…");
+        loadScene(idx, camera);
+      }
+    });
+  });
+</script>
+</body>
+</html>
