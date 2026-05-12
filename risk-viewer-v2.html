@@ -340,12 +340,12 @@
     esriConfig.apiKey = API_KEY;
 
     esriId.registerOAuthInfos([new OAuthInfo({
-      appId: "Bh1bcReL0lXkMNhM",
+      appId: "tAaxld2dnt3aNhGu",
       portalUrl: PORTAL_URL,
-      popup: false
+      popup: true
     })]);
 
-    // Check for existing session; if none, redirect to ArcGIS Online sign-in
+    // Check for existing session; if none, open sign-in popup
     esriId.checkSignInStatus(PORTAL_URL + "/sharing/rest")
       .catch(() => esriId.getCredential(PORTAL_URL + "/sharing/rest"))
       .then(() => loadScene(0))
