@@ -331,13 +331,29 @@
 
   require([
     "esri/config",
+    "esri/identity/IdentityManager",
+    "esri/identity/OAuthInfo",
     "esri/WebScene",
     "esri/views/SceneView"
-  ], function(esriConfig, WebScene, SceneView) {
+  ], function(esriConfig, esriId, OAuthInfo, WebScene, SceneView) {
 
     esriConfig.apiKey = API_KEY;
 
-    loadScene(0);
+    esriId.registerOAuthInfos([new OAuthInfo({
+      appId: "Bh1bcReL0lXkMNhM",
+      portalUrl: PORTAL_URL,
+      popup: false
+    })]);
+
+    // Check for existing session; if none, redirect to ArcGIS Online sign-in
+    esriId.checkSignInStatus(PORTAL_URL + "/sharing/rest")
+      .catch(() => esriId.getCredential(PORTAL_URL + "/sharing/rest"))
+      .then(() => loadScene(0))
+      .catch(err => {
+        console.error("Authentication failed:", err);
+        setStatus("error", "sign-in failed");
+      });
+
 
     function loadScene(i, camera) {
       if (initialized[i]) return;
