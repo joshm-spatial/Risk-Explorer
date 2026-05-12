@@ -44,14 +44,6 @@
       font-family: 'Syne', sans-serif;
     }
 
-    /* ── Tabs strip inside calcite-navigation ── */
-    #tabs {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 0 8px;
-    }
-
     /* ── Status bar ── */
     #status-bar {
       display: flex;
@@ -206,17 +198,9 @@
   <calcite-navigation slot="header">
     <calcite-navigation-logo slot="logo" heading="Risk Intelligence" icon="layers"/>
 
-    <div slot="content-start" id="tabs" role="tablist">
-      <calcite-button data-scene="0" appearance="outline-fill" kind="brand" scale="s">
-        Risk Explorer
-      </calcite-button>
-      <calcite-button data-scene="1" appearance="transparent" kind="neutral" scale="s">
-        Risk Scoring
-      </calcite-button>
-      <calcite-button data-scene="2" appearance="transparent" kind="neutral" scale="s">
-        Risk Planner
-      </calcite-button>
-    </div>
+    <calcite-button slot="content-start" data-scene="0" appearance="outline-fill" kind="brand" scale="s">Risk Explorer</calcite-button>
+    <calcite-button slot="content-start" data-scene="1" appearance="transparent" kind="neutral" scale="s">Risk Scoring</calcite-button>
+    <calcite-button slot="content-start" data-scene="2" appearance="transparent" kind="neutral" scale="s">Risk Planner</calcite-button>
 
     <div slot="content-end" id="status-bar">
       <div class="status-dot loading" id="status-dot"></div>
@@ -482,7 +466,7 @@
     }
 
     // ── Tab switching ────────────────────────────────────────────────────────
-    document.querySelectorAll("#tabs calcite-button").forEach(btn => {
+    document.querySelectorAll("calcite-button[data-scene]").forEach(btn => {
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.dataset.scene, 10);
         if (idx === activeIndex) return;
@@ -490,7 +474,7 @@
         const camera = views[activeIndex] ? views[activeIndex].camera : null;
 
         // Update calcite-button appearance for active/inactive state
-        document.querySelectorAll("#tabs calcite-button").forEach(b => {
+        document.querySelectorAll("calcite-button[data-scene]").forEach(b => {
           b.setAttribute("appearance", "transparent");
           b.setAttribute("kind", "neutral");
           b.setAttribute("aria-selected", "false");
