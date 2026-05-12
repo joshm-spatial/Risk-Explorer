@@ -44,6 +44,32 @@
       font-family: 'Syne', sans-serif;
     }
 
+    /* ── Custom header (slot into calcite-shell) ── */
+    #main-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      height: 52px;
+      background: var(--calcite-color-foreground-1);
+      border-bottom: 1px solid var(--calcite-color-border-1);
+      z-index: 10000;
+    }
+
+    .nav-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--calcite-color-border-1);
+      flex-shrink: 0;
+    }
+
+    #tab-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+
     /* ── Status bar ── */
     #status-bar {
       display: flex;
@@ -52,7 +78,7 @@
       font-family: 'DM Mono', monospace;
       font-size: 11px;
       color: var(--text-muted);
-      padding: 0 16px;
+      margin-left: auto;
     }
 
     .status-dot {
@@ -195,18 +221,19 @@
 <body>
 <calcite-shell content-behind>
 
-  <calcite-navigation slot="header">
-    <calcite-navigation-logo slot="logo" heading="Risk Intelligence" icon="layers"/>
-
-    <calcite-button slot="content-start" data-scene="0" appearance="outline-fill" kind="brand" scale="s">Risk Explorer</calcite-button>
-    <calcite-button slot="content-start" data-scene="1" appearance="transparent" kind="neutral" scale="s">Risk Scoring</calcite-button>
-    <calcite-button slot="content-start" data-scene="2" appearance="transparent" kind="neutral" scale="s">Risk Planner</calcite-button>
-
-    <div slot="content-end" id="status-bar">
+  <header slot="header" id="main-nav">
+    <calcite-navigation-logo heading="Risk Intelligence" icon="layers"/>
+    <div class="nav-divider"></div>
+    <div id="tab-group" role="tablist">
+      <calcite-button data-scene="0" appearance="outline-fill" kind="brand" scale="s">Risk Explorer</calcite-button>
+      <calcite-button data-scene="1" appearance="transparent" kind="neutral" scale="s">Risk Scoring</calcite-button>
+      <calcite-button data-scene="2" appearance="transparent" kind="neutral" scale="s">Risk Planner</calcite-button>
+    </div>
+    <div id="status-bar">
       <div class="status-dot loading" id="status-dot"></div>
       <span id="status-text">initializing</span>
     </div>
-  </calcite-navigation>
+  </header>
 
 <div id="scenes" role="main">
   <div class="scene-wrap active" id="wrap-0">
@@ -466,7 +493,7 @@
     }
 
     // ── Tab switching ────────────────────────────────────────────────────────
-    document.querySelectorAll("calcite-button[data-scene]").forEach(btn => {
+    document.querySelectorAll("#tab-group calcite-button").forEach(btn => {
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.dataset.scene, 10);
         if (idx === activeIndex) return;
@@ -474,7 +501,7 @@
         const camera = views[activeIndex] ? views[activeIndex].camera : null;
 
         // Update calcite-button appearance for active/inactive state
-        document.querySelectorAll("calcite-button[data-scene]").forEach(b => {
+        document.querySelectorAll("#tab-group calcite-button").forEach(b => {
           b.setAttribute("appearance", "transparent");
           b.setAttribute("kind", "neutral");
           b.setAttribute("aria-selected", "false");
