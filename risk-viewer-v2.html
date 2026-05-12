@@ -20,139 +20,47 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Calcite dark theme token overrides to match our palette */
     :root {
-      --bg-base:        #0d0f12;
-      --bg-surface:     #141720;
-      --bg-panel:       #1b1f2b;
-      --border:         rgba(255,255,255,0.08);
-      --accent:         #4a9eff;
-      --accent-dim:     rgba(74,158,255,0.12);
-      --text-primary:   #e8eaf0;
-      --text-secondary: #7a8099;
-      --text-muted:     #4a5070;
-      --header-h:       56px;
+      --calcite-color-background:    #0d0f12;
+      --calcite-color-foreground-1:  #141720;
+      --calcite-color-foreground-2:  #1b1f2b;
+      --calcite-color-foreground-3:  #252a38;
+      --calcite-color-border-1:      rgba(255,255,255,0.08);
+      --calcite-color-border-2:      rgba(255,255,255,0.06);
+      --calcite-color-text-1:        #e8eaf0;
+      --calcite-color-text-2:        #7a8099;
+      --calcite-color-text-3:        #4a5070;
+      --calcite-color-brand:         #4a9eff;
+      --calcite-color-brand-hover:   #6ab2ff;
+      --calcite-color-brand-press:   #3a8eef;
+      /* Local aliases */
+      --text-muted: #4a5070;
+      --border:     rgba(255,255,255,0.08);
     }
 
-    html, body {
+    html, body, calcite-shell {
       height: 100%;
-      overflow: hidden;
-      background: var(--bg-base);
-      color: var(--text-primary);
       font-family: 'Syne', sans-serif;
     }
 
-    /* ── Header ── */
-    #header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: var(--header-h);
-      background: var(--bg-surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      padding: 0 20px;
-      gap: 16px;
-      z-index: 10000;
-    }
-
-    #wordmark {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-
-    .logo-mark {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      background: linear-gradient(135deg, #1e3a5f 0%, #4a9eff 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .logo-mark svg { width: 16px; height: 16px; }
-
-    #wordmark h1 {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-primary);
-    }
-
-    .divider-v {
-      width: 1px;
-      height: 24px;
-      background: var(--border);
-      flex-shrink: 0;
-    }
-
-    /* ── Tabs ── */
+    /* ── Tabs strip inside calcite-navigation ── */
     #tabs {
       display: flex;
       align-items: center;
-      gap: 2px;
-      flex: 1;
+      gap: 4px;
+      padding: 0 8px;
     }
 
-    .tab {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 16px;
-      height: 36px;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      font-family: 'Syne', sans-serif;
-      font-size: 13px;
-      font-weight: 400;
-      color: var(--text-secondary);
-      background: transparent;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color 0.15s, background 0.15s, border-color 0.15s;
-      letter-spacing: 0.02em;
-    }
-
-    .tab:hover {
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.05);
-      border-color: var(--border);
-    }
-
-    .tab.active {
-      color: var(--accent);
-      background: var(--accent-dim);
-      border-color: rgba(74,158,255,0.3);
-      font-weight: 600;
-    }
-
-    .tab-badge {
-      font-family: 'DM Mono', monospace;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.07);
-      color: var(--text-muted);
-    }
-
-    .tab.active .tab-badge {
-      background: rgba(74,158,255,0.18);
-      color: var(--accent);
-    }
-
-    /* ── Status ── */
+    /* ── Status bar ── */
     #status-bar {
-      margin-left: auto;
       display: flex;
       align-items: center;
       gap: 8px;
       font-family: 'DM Mono', monospace;
       font-size: 11px;
       color: var(--text-muted);
-      flex-shrink: 0;
+      padding: 0 16px;
     }
 
     .status-dot {
@@ -169,11 +77,10 @@
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     @keyframes spin   { to{transform:rotate(360deg)} }
 
-    /* ── Scene containers ── */
+    /* ── Scene containers (full viewport, nav overlays via content-behind) ── */
     #scenes {
       position: fixed;
-      top: var(--header-h);
-      left: 0; right: 0; bottom: 0;
+      inset: 0;
     }
 
     .scene-wrap {
@@ -294,39 +201,28 @@
   </style>
 </head>
 <body>
+<calcite-shell content-behind>
 
-<header id="header">
-  <div id="wordmark">
-    <div class="logo-mark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-        <polyline points="2 17 12 22 22 17"/>
-        <polyline points="2 12 12 17 22 12"/>
-      </svg>
+  <calcite-navigation slot="header">
+    <calcite-navigation-logo slot="logo" heading="Risk Intelligence" icon="layers"/>
+
+    <div slot="content-start" id="tabs" role="tablist">
+      <calcite-button data-scene="0" appearance="outline-fill" kind="brand" scale="s">
+        Risk Explorer
+      </calcite-button>
+      <calcite-button data-scene="1" appearance="transparent" kind="neutral" scale="s">
+        Risk Scoring
+      </calcite-button>
+      <calcite-button data-scene="2" appearance="transparent" kind="neutral" scale="s">
+        Risk Planner
+      </calcite-button>
     </div>
-    <h1>Risk Intelligence</h1>
-  </div>
 
-  <div class="divider-v"></div>
-
-  <nav id="tabs" role="tablist">
-    <button class="tab active" data-scene="0" role="tab" aria-selected="true">
-      Risk Explorer
-      <span class="tab-badge">MAIN</span>
-    </button>
-    <button class="tab" data-scene="1" role="tab" aria-selected="false">
-      Risk Scoring
-    </button>
-    <button class="tab" data-scene="2" role="tab" aria-selected="false">
-      Risk Planner
-    </button>
-  </nav>
-
-  <div id="status-bar">
-    <div class="status-dot loading" id="status-dot"></div>
-    <span id="status-text">initializing</span>
-  </div>
-</header>
+    <div slot="content-end" id="status-bar">
+      <div class="status-dot loading" id="status-dot"></div>
+      <span id="status-text">initializing</span>
+    </div>
+  </calcite-navigation>
 
 <div id="scenes" role="main">
   <div class="scene-wrap active" id="wrap-0">
@@ -392,6 +288,8 @@
   </calcite-card>
 </div>
 
+</calcite-shell>
+
 <script>
   const API_KEY    = "AAPTa_TPQ0BjrvT1zphwzyrQOYA..-q1UWYsWn8UOO-vFikSPxHu-OJ5fjWIsPhl1LAoIlPTnoZEqeMq0tmCTUj1tYBdljvkAEiJSpZNtvifU5N6IowRuLGWMvGg24zGRFDZY0U0KXR_Hy2VJoiuDaupqBOMY6ARW4sMZYjDpB8TJunkvzfY6UM7fz1jZ_H0PL3jVTN7S1DqdJ2DtJ_mwMrLHGU_jFToxRW3Gd63MeT_TAjcaaGMqn41BLLfNir3NZ_MgXnBIdOLqGXf_htMdl5x1Bm0R88LW4EBAQ9CAl51JbsQkFUht26Nr1Q..AT1_XhJ7Mk4f";
   const PORTAL_URL = "https://esri-cgs.maps.arcgis.com";
@@ -446,6 +344,7 @@
       const view = new SceneView({
         container: "scene-" + i,
         map: webScene,
+        padding: { top: 52 },
         ui: { components: ["zoom", "compass", "navigation-toggle"] }
       });
 
@@ -583,37 +482,39 @@
     }
 
     // ── Tab switching ────────────────────────────────────────────────────────
-    document.getElementById("tabs").addEventListener("click", e => {
-      const btn = e.target.closest(".tab");
-      if (!btn) return;
+    document.querySelectorAll("#tabs calcite-button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.scene, 10);
+        if (idx === activeIndex) return;
 
-      const idx = parseInt(btn.dataset.scene, 10);
-      if (idx === activeIndex) return;
+        const camera = views[activeIndex] ? views[activeIndex].camera : null;
 
-      const camera = views[activeIndex] ? views[activeIndex].camera : null;
+        // Update calcite-button appearance for active/inactive state
+        document.querySelectorAll("#tabs calcite-button").forEach(b => {
+          b.setAttribute("appearance", "transparent");
+          b.setAttribute("kind", "neutral");
+          b.setAttribute("aria-selected", "false");
+        });
+        btn.setAttribute("appearance", "outline-fill");
+        btn.setAttribute("kind", "brand");
+        btn.setAttribute("aria-selected", "true");
 
-      document.querySelectorAll(".tab").forEach(t => {
-        t.classList.remove("active");
-        t.setAttribute("aria-selected", "false");
+        document.querySelectorAll(".scene-wrap").forEach(w => w.classList.remove("active"));
+        document.getElementById("wrap-" + idx).classList.add("active");
+
+        activeIndex = idx;
+
+        document.getElementById("risk-indicators").style.display =
+          (idx === 0 && riskPanelReady) ? "block" : "none";
+
+        if (views[idx]) {
+          if (camera) views[idx].camera = camera;
+          setStatus("ready", "ready");
+        } else {
+          setStatus("loading", "loading " + SCENES[idx].label.toLowerCase() + "…");
+          loadScene(idx, camera);
+        }
       });
-      document.querySelectorAll(".scene-wrap").forEach(w => w.classList.remove("active"));
-
-      btn.classList.add("active");
-      btn.setAttribute("aria-selected", "true");
-      document.getElementById("wrap-" + idx).classList.add("active");
-
-      activeIndex = idx;
-
-      document.getElementById("risk-indicators").style.display =
-        (idx === 0 && riskPanelReady) ? "block" : "none";
-
-      if (views[idx]) {
-        if (camera) views[idx].camera = camera;
-        setStatus("ready", "ready");
-      } else {
-        setStatus("loading", "loading " + SCENES[idx].label.toLowerCase() + "…");
-        loadScene(idx, camera);
-      }
     });
   });
 </script>
